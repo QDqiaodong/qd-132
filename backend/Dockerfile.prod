@@ -1,0 +1,21 @@
+FROM maven:3.9-eclipse-temurin-17 AS builder
+
+WORKDIR /app
+
+COPY pom.xml .
+
+RUN mvn dependency:go-offline -Dmaven.repo.local=/root/.m2/repository -Drepo.url=https://mirrors.163.com/maven/repository/maven-public/
+
+COPY src ./src
+
+RUN mvn package -DskipTests -Dmaven.repo.local=/root/.m2/repository
+
+FROM eclipse-temurin:17-jre-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/target/space-museum-1.0.0.jar app.jar
+
+EXPOSE 8142
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

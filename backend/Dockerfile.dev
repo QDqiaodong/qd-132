@@ -1,0 +1,13 @@
+FROM maven:3.9-eclipse-temurin-17
+
+WORKDIR /app
+
+COPY pom.xml .
+
+RUN mvn dependency:go-offline -Dmaven.repo.local=/root/.m2/repository
+
+COPY src ./src
+
+EXPOSE 8162
+
+CMD ["mvn", "spring-boot:run", "-Dmaven.repo.local=/root/.m2/repository"]
