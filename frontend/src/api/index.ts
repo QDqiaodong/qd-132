@@ -69,6 +69,12 @@ export interface StudyGroup {
   remark: string
 }
 
+export interface DailyAttendance {
+  visitDate: string
+  groupCount: number
+  totalStudents: number
+}
+
 export interface Allocation {
   id: number
   studyGroupId: number
@@ -149,6 +155,8 @@ export const studyGroupApi = {
   getAll: (): Promise<StudyGroup[]> => api.get('/study-groups'),
   getByStatus: (status: number): Promise<StudyGroup[]> => api.get(`/study-groups/status/${status}`),
   getByDate: (date: string): Promise<StudyGroup[]> => api.get(`/study-groups/date/${date}`),
+  getDailyAttendance: (date: string): Promise<DailyAttendance> =>
+    api.get(`/study-groups/attendance/date/${date}`),
   getById: (id: number): Promise<StudyGroup> => api.get(`/study-groups/${id}`),
   create: (data: Omit<StudyGroup, 'id'>): Promise<StudyGroup> => api.post('/study-groups', data),
   update: (id: number, data: StudyGroup): Promise<StudyGroup> => api.put(`/study-groups/${id}`, data),

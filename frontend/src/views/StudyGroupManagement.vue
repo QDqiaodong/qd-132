@@ -1,5 +1,25 @@
 <template>
   <div class="study-group-management">
+    <el-card class="attendance-card">
+      <div class="attendance-bar">
+        <h3 class="attendance-title">每日到馆人数</h3>
+        <el-date-picker
+          v-model="attendanceDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="选择参观日期"
+          @change="loadAttendance"
+        />
+        <el-button type="primary" :disabled="!attendanceDate" @click="loadAttendance">查询</el-button>
+        <div v-if="attendance" class="attendance-result">
+          <span class="attendance-date">{{ attendance.visitDate }}</span>
+          已预约研学团
+          <strong>{{ attendance.groupCount }}</strong> 个，到馆学生共
+          <strong class="attendance-number">{{ attendance.totalStudents }}</strong> 人
+        </div>
+      </div>
+    </el-card>
+
     <el-card>
       <div class="card-header">
         <h2>研学团管理</h2>
@@ -17,7 +37,7 @@
           <el-input v-model="searchForm.groupName" placeholder="请输入团名" />
         </el-form-item>
         <el-form-item label="参观日期">
-          <el-date-picker v-model="searchForm.visitDate" type="date" placeholder="选择日期" />
+          <el-date-picker v-model="searchForm.visitDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="searchForm.status" placeholder="全部">
@@ -91,7 +111,7 @@
           <el-input-number v-model="form.averageAge" :min="3" :max="18" />
         </el-form-item>
         <el-form-item label="参观日期" required>
-          <el-date-picker v-model="form.visitDate" type="date" placeholder="选择日期" />
+          <el-date-picker v-model="form.visitDate" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" />
         </el-form-item>
         <el-form-item label="状态" required>
           <el-select v-model="form.status">
@@ -134,13 +154,23 @@
 import { ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { studyGroupApi, allocationApi, type StudyGroup, type AllocationResult } from '@/api'
+import { studyGroupApi, allocationApi, type StudyGroup, type AllocationResult, type DailyAttendance } from '@/api'
 
 const groups = ref<StudyGroup[]>([])
 const dialogVisible = ref(false)
 const allocateDialogVisible = ref(false)
 const isEdit = ref(false)
 const allocationResults = ref<AllocationResult[]>([])
+
+// 选定的参观日与当天到馆人数汇总
+const todayString = () => {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+const attendanceDate = ref(todayString())
+const attendance = ref<DailyAttendance | null>(null)
 
 const searchForm = reactive({
   groupCode: '',
@@ -179,6 +209,19 @@ const loadGroups = async () => {
   }
 }
 
+// 按选定参观日实时汇总到馆人数；人数改动后再次调用即按新人数重算
+const loadAttendance = async () => {
+  if (!attendanceDate.value) {
+    attendance.value = null
+    return
+  }
+  try {
+    attendance.value = await studyGroupApi.getDailyAttendance(attendanceDate.value)
+  } catch (error) {
+    ElMessage.error('加载到馆人数失败')
+  }
+}
+
 const openAddDialog = () => {
   isEdit.value = false
   Object.assign(form, {
@@ -214,6 +257,8 @@ const saveGroup = async () => {
     }
     dialogVisible.value = false
     loadGroups()
+    // 团人数或参观日期可能已变更，到馆人数按新数据重算
+    loadAttendance()
   } catch (error) {
     ElMessage.error('操作失败')
   }
@@ -225,6 +270,7 @@ const deleteGroup = async (id: number) => {
     await studyGroupApi.delete(id)
     ElMessage.success('研学团删除成功')
     loadGroups()
+    loadAttendance()
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('删除失败')
@@ -249,11 +295,44 @@ const resetSearch = () => {
 }
 
 loadGroups()
+loadAttendance()
 </script>
 
 <style scoped>
 .study-group-management {
   padding: 20px;
+}
+
+.attendance-card {
+  margin-bottom: 20px;
+}
+
+.attendance-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.attendance-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.attendance-result {
+  font-size: 15px;
+  color: #303133;
+}
+
+.attendance-date {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.attendance-number {
+  color: #409eff;
+  font-size: 20px;
+  margin: 0 4px;
 }
 
 .card-header {

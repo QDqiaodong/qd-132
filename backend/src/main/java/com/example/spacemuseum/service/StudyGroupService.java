@@ -1,5 +1,6 @@
 package com.example.spacemuseum.service;
 
+import com.example.spacemuseum.dto.DailyAttendanceDTO;
 import com.example.spacemuseum.dto.StudyGroupDTO;
 import com.example.spacemuseum.entity.StudyGroup;
 import com.example.spacemuseum.repository.StudyGroupRepository;
@@ -13,6 +14,9 @@ import java.util.Optional;
 
 @Service
 public class StudyGroupService {
+
+    /** 研学团状态：已预约（已取消为 0，不计入到馆人数） */
+    private static final int STATUS_BOOKED = 1;
 
     @Autowired
     private StudyGroupRepository studyGroupRepository;
@@ -68,6 +72,21 @@ public class StudyGroupService {
 
     public List<StudyGroup> getStudyGroupsByDate(LocalDate visitDate) {
         return studyGroupRepository.findByVisitDate(visitDate);
+    }
+
+    /**
+     * 计算指定参观日的到馆人数：当天已预约各研学团学生人数之和。
+     * 每次调用都基于各团当前人数实时汇总，团人数修改后再次调用即按新人数重算，
+     * 不依赖任何历史快照或缓存字段。
+     */
+    public DailyAttendanceDTO getDailyAttendance(LocalDate visitDate) {
+        List<StudyGroup> bookedGroups =
+                studyGroupRepository.findByVisitDateAndStatus(visitDate, STATUS_BOOKED);
+        int totalStudents = bookedGroups.stream()
+                .map(StudyGroup::getTotalStudents)
+                .mapToInt(Integer::intValue)
+                .sum();
+        return new DailyAttendanceDTO(visitDate, bookedGroups.size(), totalStudents);
     }
 
     public List<StudyGroup> getStudyGroupsByStatus(Integer status) {

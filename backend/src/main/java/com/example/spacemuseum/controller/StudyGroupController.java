@@ -1,5 +1,6 @@
 package com.example.spacemuseum.controller;
 
+import com.example.spacemuseum.dto.DailyAttendanceDTO;
 import com.example.spacemuseum.dto.StudyGroupDTO;
 import com.example.spacemuseum.entity.StudyGroup;
 import com.example.spacemuseum.security.CurrentUser;
@@ -67,6 +68,17 @@ public class StudyGroupController {
         return studyGroupService.getStudyGroupById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * 查询某一参观日的到馆人数（当天已预约各团学生人数之和，实时按各团当前人数汇总）。
+     * 到馆人数涉及全馆多个研学团，仅馆务可查。
+     */
+    @GetMapping("/attendance/date/{visitDate}")
+    public ResponseEntity<DailyAttendanceDTO> getDailyAttendance(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate visitDate) {
+        SecurityUtils.requireStaff();
+        return ResponseEntity.ok(studyGroupService.getDailyAttendance(visitDate));
     }
 
     @PostMapping

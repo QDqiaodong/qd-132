@@ -18,4 +18,6 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
     List<StudyGroup> findByVisitDate(LocalDate visitDate);
 
     List<StudyGroup> findByVisitDateBetween(LocalDate startDate, LocalDate endDate);
+
+    List<StudyGroup> findByVisitDateAndStatus(LocalDate visitDate, Integer status);
 }
