@@ -26,6 +26,10 @@ public interface AllocationRepository extends JpaRepository<Allocation, Long> {
     @Query("SELECT a FROM Allocation a WHERE a.studyGroup.visitDate = :visitDate AND a.status = 1")
     List<Allocation> findActiveAllocationsByDate(@Param("visitDate") java.time.LocalDate visitDate);
 
+    @Query("SELECT a FROM Allocation a WHERE a.studyGroup.visitDate = :visitDate AND a.studyGroup.id = :studyGroupId AND a.status = 1")
+    List<Allocation> findActiveAllocationsByDateAndGroup(@Param("visitDate") java.time.LocalDate visitDate,
+                                                         @Param("studyGroupId") Long studyGroupId);
+
     @Query("SELECT SUM(a.studentCount) FROM Allocation a WHERE a.timeSlot.id = :timeSlotId AND a.status = 1")
     Integer sumStudentsByTimeSlot(@Param("timeSlotId") Long timeSlotId);
 

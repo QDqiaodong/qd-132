@@ -4,6 +4,7 @@ import com.example.spacemuseum.dto.DeviceDTO;
 import com.example.spacemuseum.dto.TimeSlotDTO;
 import com.example.spacemuseum.entity.Device;
 import com.example.spacemuseum.entity.TimeSlot;
+import com.example.spacemuseum.security.SecurityUtils;
 import com.example.spacemuseum.service.DeviceService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,16 +46,19 @@ public class DeviceController {
 
     @PostMapping
     public ResponseEntity<Device> createDevice(@Valid @RequestBody DeviceDTO dto) {
+        SecurityUtils.requireStaff();
         return ResponseEntity.ok(deviceService.createDevice(dto));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Device> updateDevice(@PathVariable Long id, @Valid @RequestBody DeviceDTO dto) {
+        SecurityUtils.requireStaff();
         return ResponseEntity.ok(deviceService.updateDevice(id, dto));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDevice(@PathVariable Long id) {
+        SecurityUtils.requireStaff();
         deviceService.deleteDevice(id);
         return ResponseEntity.noContent().build();
     }
@@ -66,6 +70,7 @@ public class DeviceController {
 
     @PostMapping("/{id}/slots")
     public ResponseEntity<Map<String, String>> addTimeSlot(@PathVariable Long id, @Valid @RequestBody TimeSlotDTO dto) {
+        SecurityUtils.requireStaff();
         deviceService.addTimeSlot(id, dto);
         Map<String, String> response = new HashMap<>();
         response.put("message", "时段添加成功");
@@ -74,6 +79,7 @@ public class DeviceController {
 
     @PutMapping("/slots/{slotId}")
     public ResponseEntity<Map<String, String>> updateTimeSlot(@PathVariable Long slotId, @Valid @RequestBody TimeSlotDTO dto) {
+        SecurityUtils.requireStaff();
         deviceService.updateTimeSlot(slotId, dto);
         Map<String, String> response = new HashMap<>();
         response.put("message", "时段更新成功");
@@ -82,6 +88,7 @@ public class DeviceController {
 
     @DeleteMapping("/slots/{slotId}")
     public ResponseEntity<Map<String, String>> deleteTimeSlot(@PathVariable Long slotId) {
+        SecurityUtils.requireStaff();
         deviceService.deleteTimeSlot(slotId);
         Map<String, String> response = new HashMap<>();
         response.put("message", "时段删除成功");

@@ -1,14 +1,34 @@
 import axios, { type AxiosResponse } from 'axios'
+import { authState, clearAuth, type AuthUser } from '@/auth'
 
 const api = axios.create({
   baseURL: '/api',
   timeout: 30000
 })
 
+// 每次请求都携带当前身份，服务端据此按角色收窄可见范围
+api.interceptors.request.use(config => {
+  const user = authState.user
+  if (user) {
+    config.headers['X-User-Role'] = user.role
+    if (user.role === 'TEACHER' && user.groupId != null) {
+      config.headers['X-Group-Id'] = String(user.groupId)
+    }
+  }
+  return config
+})
+
 api.interceptors.response.use(
   (response: AxiosResponse) => response.data,
   error => {
     console.error('API Error:', error)
+    // 身份缺失或失效：清除本地身份并回到登录页
+    if (error.response?.status === 401) {
+      clearAuth()
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
     return Promise.reject(error)
   }
 )
@@ -81,6 +101,11 @@ export interface GroupAllocation {
   averageAge: number
   visitDate: string
   allocations: AllocationResult[]
+}
+
+export const authApi = {
+  login: (data: { role: 'STAFF' | 'TEACHER'; groupCode?: string }): Promise<AuthUser> =>
+    api.post('/auth/login', data)
 }
 
 export const deviceApi = {

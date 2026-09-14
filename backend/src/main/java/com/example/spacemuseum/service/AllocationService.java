@@ -217,6 +217,10 @@ public class AllocationService {
         return allocationRepository.findActiveAllocationsByDate(visitDate);
     }
 
+    public List<Allocation> getAllocationsByDateAndGroup(java.time.LocalDate visitDate, Long studyGroupId) {
+        return allocationRepository.findActiveAllocationsByDateAndGroup(visitDate, studyGroupId);
+    }
+
     private String generateBatchNumber(String groupCode) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         return "BATCH_" + groupCode + "_" + timestamp;

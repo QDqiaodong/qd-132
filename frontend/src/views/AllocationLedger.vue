@@ -2,8 +2,13 @@
   <div class="allocation-ledger">
     <el-card>
       <div class="card-header">
-        <h2>配对台账</h2>
-        <el-button type="primary" @click="openManualAllocateDialog">
+        <div class="card-title">
+          <h2>配对台账</h2>
+          <el-tag :type="isStaff ? 'primary' : 'success'" effect="plain" size="small">
+            {{ isStaff ? '可见范围：全部研学团' : '可见范围：仅本团' }}
+          </el-tag>
+        </div>
+        <el-button v-if="isStaff" type="primary" @click="openManualAllocateDialog">
           <el-icon><Plus /></el-icon>
           手动分配
         </el-button>
@@ -36,13 +41,16 @@
                 <p>团号: {{ group.groupCode }} | 学校: {{ group.schoolName || '-' }}</p>
                 <p>学生人数: {{ group.totalStudents }}人 | 平均年龄: {{ group.averageAge }}岁</p>
               </div>
-              <div class="group-actions">
+              <div v-if="isStaff" class="group-actions">
                 <el-button size="small" @click="viewGroupDetail(group)">查看详情</el-button>
                 <el-button size="small" type="danger" @click="cancelGroupAllocations(group.groupId)">取消分配</el-button>
                 <el-button size="small" type="success" @click="reallocateGroup(group.groupId)">重新分配</el-button>
               </div>
+              <div v-else class="group-actions">
+                <el-button size="small" @click="viewGroupDetail(group)">查看详情</el-button>
+              </div>
             </div>
-            
+
             <div v-if="group.allocations.length > 0">
               <el-table :data="group.allocations" border stripe size="small">
                 <el-table-column prop="deviceCode" label="设备编号" width="120" />
@@ -51,7 +59,7 @@
                 <el-table-column prop="endTime" label="结束时间" width="120" />
                 <el-table-column prop="studentCount" label="分配人数" width="100" />
                 <el-table-column prop="batchNumber" label="批次号" />
-                <el-table-column label="操作" width="120">
+                <el-table-column v-if="isStaff" label="操作" width="120">
                   <template #default="scope">
                     <el-button size="small" type="danger" @click="cancelAllocation(scope.row.allocationId)">取消</el-button>
                   </template>
@@ -59,7 +67,8 @@
               </el-table>
             </div>
             <div v-else class="no-allocation">
-              <p>暂无分配记录，请点击"重新分配"进行自动配对</p>
+              <p v-if="isStaff">暂无分配记录，请点击"重新分配"进行自动配对</p>
+              <p v-else>暂无分配记录，请联系馆务人员安排配对</p>
             </div>
           </el-card>
         </el-timeline-item>
@@ -68,7 +77,8 @@
       <div v-if="groupAllocations.length === 0" class="empty-state">
         <el-icon :size="64" color="#ccc"><Grid /></el-icon>
         <p>暂无分配记录</p>
-        <p>请先添加研学团并进行自动分配</p>
+        <p v-if="isStaff">请先添加研学团并进行自动分配</p>
+        <p v-else>本团暂无配对信息，请联系馆务人员</p>
       </div>
     </el-card>
 
@@ -111,8 +121,8 @@
         </el-form-item>
         <el-form-item label="时段" required>
           <el-select v-model="manualForm.timeSlotId">
-            <el-option v-for="slot in deviceSlots" :key="slot.id" 
-              :label="`${slot.startTime}-${slot.endTime}`" 
+            <el-option v-for="slot in deviceSlots" :key="slot.id"
+              :label="`${slot.startTime}-${slot.endTime}`"
               :value="slot.id" />
           </el-select>
         </el-form-item>
@@ -129,10 +139,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Grid } from '@element-plus/icons-vue'
 import { allocationApi, studyGroupApi, deviceApi, type GroupAllocation, type StudyGroup, type Device, type TimeSlot } from '@/api'
+import { authState } from '@/auth'
+
+const isStaff = computed(() => authState.user?.role === 'STAFF')
 
 const groupAllocations = ref<GroupAllocation[]>([])
 const detailDialogVisible = ref(false)
@@ -155,8 +168,12 @@ const manualForm = reactive({
   status: 1
 })
 
+const errorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.error || fallback
+
 const loadAllocations = async () => {
   try {
+    // 服务端已按角色收窄：馆务返回全部研学团，带队老师只返回本团
     const data = await allocationApi.getAllGroups()
     let filtered = data
     if (searchForm.visitDate) {
@@ -166,8 +183,8 @@ const loadAllocations = async () => {
       filtered = filtered.filter(g => g.groupCode.includes(searchForm.groupCode))
     }
     groupAllocations.value = filtered
-  } catch (error) {
-    ElMessage.error('加载分配记录失败')
+  } catch (error: any) {
+    ElMessage.error(errorMessage(error, '加载分配记录失败'))
   }
 }
 
@@ -182,9 +199,9 @@ const cancelAllocation = async (allocationId: number) => {
     await allocationApi.cancel(allocationId)
     ElMessage.success('分配已取消')
     loadAllocations()
-  } catch (error) {
+  } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error('取消失败')
+      ElMessage.error(errorMessage(error, '取消失败'))
     }
   }
 }
@@ -195,9 +212,9 @@ const cancelGroupAllocations = async (groupId: number) => {
     await allocationApi.cancelGroup(groupId)
     ElMessage.success('所有分配已取消')
     loadAllocations()
-  } catch (error) {
+  } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error('取消失败')
+      ElMessage.error(errorMessage(error, '取消失败'))
     }
   }
 }
@@ -208,7 +225,7 @@ const reallocateGroup = async (groupId: number) => {
     ElMessage.success('重新分配成功')
     loadAllocations()
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.error || '重新分配失败')
+    ElMessage.error(errorMessage(error, '重新分配失败'))
   }
 }
 
@@ -216,8 +233,8 @@ const openManualAllocateDialog = async () => {
   try {
     studyGroups.value = await studyGroupApi.getAll()
     devices.value = await deviceApi.getActive()
-  } catch (error) {
-    ElMessage.error('加载数据失败')
+  } catch (error: any) {
+    ElMessage.error(errorMessage(error, '加载数据失败'))
   }
   manualDialogVisible.value = true
 }
@@ -226,8 +243,8 @@ const loadDeviceSlots = async () => {
   if (manualForm.deviceId > 0) {
     try {
       deviceSlots.value = await deviceApi.getSlots(manualForm.deviceId)
-    } catch (error) {
-      ElMessage.error('加载时段失败')
+    } catch (error: any) {
+      ElMessage.error(errorMessage(error, '加载时段失败'))
     }
   }
 }
@@ -239,7 +256,7 @@ const saveManualAllocation = async () => {
     manualDialogVisible.value = false
     loadAllocations()
   } catch (error: any) {
-    ElMessage.error(error?.response?.data?.error || '手动分配失败')
+    ElMessage.error(errorMessage(error, '手动分配失败'))
   }
 }
 
@@ -263,7 +280,13 @@ loadAllocations()
   margin-bottom: 20px;
 }
 
-.card-header h2 {
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.card-title h2 {
   margin: 0;
   font-size: 18px;
 }

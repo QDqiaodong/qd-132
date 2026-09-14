@@ -4,6 +4,8 @@ import com.example.spacemuseum.dto.AllocationDTO;
 import com.example.spacemuseum.dto.AllocationResultDTO;
 import com.example.spacemuseum.dto.GroupAllocationDTO;
 import com.example.spacemuseum.entity.Allocation;
+import com.example.spacemuseum.security.CurrentUser;
+import com.example.spacemuseum.security.SecurityUtils;
 import com.example.spacemuseum.service.AllocationService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 配对台账接口。可见范围按角色收窄：
+ * 馆务（STAFF）可查看全部研学团配对并维护台账；
+ * 带队老师（TEACHER）仅可查看本团配对，访问他团一律 403，且不能改写配对。
+ */
 @RestController
 @RequestMapping("/api/allocations")
 public class AllocationController {
@@ -25,47 +32,66 @@ public class AllocationController {
 
     @GetMapping
     public ResponseEntity<List<Allocation>> getAllAllocations() {
-        return ResponseEntity.ok(allocationService.getAllAllocations());
+        CurrentUser user = SecurityUtils.currentUser();
+        if (user.isStaff()) {
+            return ResponseEntity.ok(allocationService.getAllAllocations());
+        }
+        return ResponseEntity.ok(allocationService.getAllocationsByGroup(user.groupId()));
     }
 
     @GetMapping("/group/{studyGroupId}")
     public ResponseEntity<List<Allocation>> getAllocationsByGroup(@PathVariable Long studyGroupId) {
+        SecurityUtils.requireGroupAccess(studyGroupId);
         return ResponseEntity.ok(allocationService.getAllocationsByGroup(studyGroupId));
     }
 
     @GetMapping("/group/{studyGroupId}/detail")
     public ResponseEntity<GroupAllocationDTO> getGroupAllocationDetail(@PathVariable Long studyGroupId) {
+        SecurityUtils.requireGroupAccess(studyGroupId);
         return ResponseEntity.ok(allocationService.getGroupAllocationDetail(studyGroupId));
     }
 
     @GetMapping("/all-groups")
     public ResponseEntity<List<GroupAllocationDTO>> getAllGroupAllocations() {
-        return ResponseEntity.ok(allocationService.getAllGroupAllocations());
+        CurrentUser user = SecurityUtils.currentUser();
+        if (user.isStaff()) {
+            return ResponseEntity.ok(allocationService.getAllGroupAllocations());
+        }
+        // 带队老师刷新列表时仍只拿到本团，保证可见范围与角色权限一致
+        return ResponseEntity.ok(List.of(allocationService.getGroupAllocationDetail(user.groupId())));
     }
 
     @GetMapping("/date/{visitDate}")
     public ResponseEntity<List<Allocation>> getAllocationsByDate(
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate visitDate) {
-        return ResponseEntity.ok(allocationService.getAllocationsByDate(visitDate));
+        CurrentUser user = SecurityUtils.currentUser();
+        if (user.isStaff()) {
+            return ResponseEntity.ok(allocationService.getAllocationsByDate(visitDate));
+        }
+        return ResponseEntity.ok(allocationService.getAllocationsByDateAndGroup(visitDate, user.groupId()));
     }
 
     @PostMapping("/auto/{studyGroupId}")
     public ResponseEntity<List<AllocationResultDTO>> autoAllocate(@PathVariable Long studyGroupId) {
+        SecurityUtils.requireStaff();
         return ResponseEntity.ok(allocationService.autoAllocate(studyGroupId));
     }
 
     @PostMapping
     public ResponseEntity<Allocation> manualAllocate(@Valid @RequestBody AllocationDTO dto) {
+        SecurityUtils.requireStaff();
         return ResponseEntity.ok(allocationService.manualAllocate(dto));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Allocation> updateAllocation(@PathVariable Long id, @Valid @RequestBody AllocationDTO dto) {
+        SecurityUtils.requireStaff();
         return ResponseEntity.ok(allocationService.updateAllocation(id, dto));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, String>> cancelAllocation(@PathVariable Long id) {
+        SecurityUtils.requireStaff();
         allocationService.cancelAllocation(id);
         Map<String, String> response = new HashMap<>();
         response.put("message", "分配已取消");
@@ -74,6 +100,7 @@ public class AllocationController {
 
     @DeleteMapping("/group/{studyGroupId}")
     public ResponseEntity<Map<String, String>> cancelGroupAllocations(@PathVariable Long studyGroupId) {
+        SecurityUtils.requireStaff();
         allocationService.cancelExistingAllocations(studyGroupId);
         Map<String, String> response = new HashMap<>();
         response.put("message", "该研学团所有分配已取消");
