@@ -44,7 +44,13 @@
               <div v-if="isStaff" class="group-actions">
                 <el-button size="small" @click="viewGroupDetail(group)">查看详情</el-button>
                 <el-button size="small" type="danger" @click="cancelGroupAllocations(group.groupId)">取消分配</el-button>
-                <el-button size="small" type="success" @click="reallocateGroup(group.groupId)">重新分配</el-button>
+                <el-button
+                  size="small"
+                  type="success"
+                  :loading="reallocatingGroupId === group.groupId"
+                  :disabled="reallocatingGroupId !== null"
+                  @click="reallocateGroup(group.groupId)"
+                >重新分配</el-button>
               </div>
               <div v-else class="group-actions">
                 <el-button size="small" @click="viewGroupDetail(group)">查看详情</el-button>
@@ -154,6 +160,8 @@ const selectedGroup = ref<GroupAllocation | null>(null)
 const studyGroups = ref<StudyGroup[]>([])
 const devices = ref<Device[]>([])
 const deviceSlots = ref<TimeSlot[]>([])
+// 正在重新分配的研学团 id，非空时禁用所有重新分配按钮，连点只生效一次
+const reallocatingGroupId = ref<number | null>(null)
 
 const searchForm = reactive({
   visitDate: '',
@@ -220,12 +228,17 @@ const cancelGroupAllocations = async (groupId: number) => {
 }
 
 const reallocateGroup = async (groupId: number) => {
+  // 提交中直接忽略重复点击，保证连点只生效一次；缺带队老师或联系电话时由后端报错并指明缺项
+  if (reallocatingGroupId.value !== null) return
+  reallocatingGroupId.value = groupId
   try {
     await allocationApi.autoAllocate(groupId)
     ElMessage.success('重新分配成功')
     loadAllocations()
   } catch (error: any) {
     ElMessage.error(errorMessage(error, '重新分配失败'))
+  } finally {
+    reallocatingGroupId.value = null
   }
 }
 

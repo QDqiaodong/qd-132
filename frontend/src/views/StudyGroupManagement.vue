@@ -55,7 +55,7 @@
         <el-table-column prop="groupCode" label="团号" width="120" />
         <el-table-column prop="groupName" label="团名" width="150" />
         <el-table-column prop="schoolName" label="学校名称" width="150" />
-        <el-table-column prop="contactPerson" label="联系人" width="100" />
+        <el-table-column prop="contactPerson" label="带队老师" width="100" />
         <el-table-column prop="contactPhone" label="联系电话" width="130" />
         <el-table-column prop="totalStudents" label="学生人数" width="100" />
         <el-table-column prop="averageAge" label="平均年龄" width="100" />
@@ -72,7 +72,13 @@
           <template #default="scope">
             <el-button size="small" @click="openEditDialog(scope.row)">编辑</el-button>
             <el-button size="small" type="danger" @click="deleteGroup(scope.row.id)">删除</el-button>
-            <el-button size="small" type="success" @click="autoAllocate(scope.row.id)">自动分配</el-button>
+            <el-button
+              size="small"
+              type="success"
+              :loading="allocatingGroupId === scope.row.id"
+              :disabled="allocatingGroupId !== null"
+              @click="autoAllocate(scope.row.id)"
+            >自动分配</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -98,8 +104,8 @@
         <el-form-item label="学校名称">
           <el-input v-model="form.schoolName" />
         </el-form-item>
-        <el-form-item label="联系人">
-          <el-input v-model="form.contactPerson" />
+        <el-form-item label="带队老师">
+          <el-input v-model="form.contactPerson" placeholder="请输入带队老师姓名" />
         </el-form-item>
         <el-form-item label="联系电话">
           <el-input v-model="form.contactPhone" placeholder="请输入手机号" />
@@ -161,6 +167,8 @@ const dialogVisible = ref(false)
 const allocateDialogVisible = ref(false)
 const isEdit = ref(false)
 const allocationResults = ref<AllocationResult[]>([])
+// 正在提交自动分配的研学团 id，非空时禁用所有分配按钮，连点只生效一次
+const allocatingGroupId = ref<number | null>(null)
 
 // 选定的参观日与当天到馆人数汇总
 const todayString = () => {
@@ -279,6 +287,18 @@ const deleteGroup = async (id: number) => {
 }
 
 const autoAllocate = async (groupId: number) => {
+  // 提交中直接忽略重复点击，保证连点只生效一次
+  if (allocatingGroupId.value !== null) return
+  // 带队老师、联系电话为必填项，缺项时明确提示缺哪一项，不发请求
+  const group = groups.value.find(g => g.id === groupId)
+  const missing: string[] = []
+  if (!group?.contactPerson?.trim()) missing.push('带队老师')
+  if (!group?.contactPhone?.trim()) missing.push('联系电话')
+  if (missing.length > 0) {
+    ElMessage.error(`该研学团未填写${missing.join('和')}，请先补全后再提交自动分配`)
+    return
+  }
+  allocatingGroupId.value = groupId
   try {
     const results = await allocationApi.autoAllocate(groupId)
     allocationResults.value = results
@@ -286,6 +306,8 @@ const autoAllocate = async (groupId: number) => {
     ElMessage.success('自动分配成功')
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.error || '自动分配失败')
+  } finally {
+    allocatingGroupId.value = null
   }
 }
 

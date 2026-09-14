@@ -13,6 +13,7 @@ import com.example.spacemuseum.repository.StudyGroupRepository;
 import com.example.spacemuseum.repository.TimeSlotRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -35,10 +36,25 @@ public class AllocationService {
     @Autowired
     private StudyGroupRepository studyGroupRepository;
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public List<AllocationResultDTO> autoAllocate(Long studyGroupId) {
-        StudyGroup group = studyGroupRepository.findById(studyGroupId)
+        // 悲观锁串行化同一研学团的并发分配：连点或重复提交时，后到的请求等待前一事务提交，
+        // 只会看到并替换已生效的分配，不会在台账留下重复记录
+        StudyGroup group = studyGroupRepository.findByIdForUpdate(studyGroupId)
                 .orElseThrow(() -> new RuntimeException("研学团不存在"));
+
+        // 带队老师、联系电话为自动分配前置必填项，缺项时明确提示缺哪一项；
+        // 校验先于任何写操作，且同事务回滚保证未补全的分配不会进入台账
+        List<String> missingFields = new ArrayList<>();
+        if (group.getContactPerson() == null || group.getContactPerson().isBlank()) {
+            missingFields.add("带队老师");
+        }
+        if (group.getContactPhone() == null || group.getContactPhone().isBlank()) {
+            missingFields.add("联系电话");
+        }
+        if (!missingFields.isEmpty()) {
+            throw new RuntimeException("该研学团未填写" + String.join("和", missingFields) + "，请先补全后再提交自动分配");
+        }
 
         cancelExistingAllocations(studyGroupId);
 
