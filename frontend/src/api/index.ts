@@ -103,6 +103,29 @@ export interface GroupAllocation {
   allocations: AllocationResult[]
 }
 
+export interface RouteStop {
+  stopId: number
+  deviceId: number
+  deviceCode: string
+  deviceName: string
+  stopOrder: number
+  released: boolean
+  completed: boolean
+  releasedTime: string | null
+  completedTime: string | null
+}
+
+export interface RoutePlan {
+  routeId: number | null
+  groupId: number
+  groupCode: string
+  groupName: string
+  schoolName: string
+  visitDate: string
+  routeName: string | null
+  stops: RouteStop[]
+}
+
 export const authApi = {
   login: (data: { role: 'STAFF' | 'TEACHER'; groupCode?: string }): Promise<AuthUser> =>
     api.post('/auth/login', data)
@@ -143,4 +166,14 @@ export const allocationApi = {
   update: (id: number, data: Allocation): Promise<Allocation> => api.put(`/allocations/${id}`, data),
   cancel: (id: number): Promise<{ message: string }> => api.delete(`/allocations/${id}`),
   cancelGroup: (groupId: number): Promise<{ message: string }> => api.delete(`/allocations/group/${groupId}`)
+}
+
+export const routeApi = {
+  getAll: (): Promise<RoutePlan[]> => api.get('/routes'),
+  getByGroup: (groupId: number): Promise<RoutePlan> => api.get(`/routes/group/${groupId}`),
+  saveRoute: (groupId: number, data: { routeName: string; deviceIds: number[] }): Promise<RoutePlan> =>
+    api.put(`/routes/group/${groupId}`, data),
+  releaseStop: (stopId: number): Promise<RouteStop> => api.post(`/routes/stops/${stopId}/release`),
+  completeStop: (stopId: number): Promise<RouteStop> => api.post(`/routes/stops/${stopId}/complete`),
+  deleteRoute: (groupId: number): Promise<{ message: string }> => api.delete(`/routes/group/${groupId}`)
 }
