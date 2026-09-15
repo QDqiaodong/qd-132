@@ -13,6 +13,10 @@
               <el-icon><Monitor /></el-icon>
               <span>设备管理</span>
             </el-menu-item>
+            <el-menu-item index="/inventory">
+              <el-icon><Box /></el-icon>
+              <span>设备盘点台账</span>
+            </el-menu-item>
             <el-menu-item index="/time-slots">
               <el-icon><Clock /></el-icon>
               <span>时段配置</span>
@@ -53,7 +57,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Ship, Monitor, Clock, User, Grid, Guide } from '@element-plus/icons-vue'
+import { Ship, Monitor, Clock, User, Grid, Guide, Box } from '@element-plus/icons-vue'
 import { authState, clearAuth } from '@/auth'
 
 const route = useRoute()

@@ -3,7 +3,9 @@ package com.example.spacemuseum.service;
 import com.example.spacemuseum.dto.DeviceDTO;
 import com.example.spacemuseum.dto.TimeSlotDTO;
 import com.example.spacemuseum.entity.Device;
+import com.example.spacemuseum.entity.DeviceInventory;
 import com.example.spacemuseum.entity.TimeSlot;
+import com.example.spacemuseum.repository.DeviceInventoryRepository;
 import com.example.spacemuseum.repository.DeviceRepository;
 import com.example.spacemuseum.repository.TimeSlotRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,9 @@ public class DeviceService {
 
     @Autowired
     private TimeSlotRepository timeSlotRepository;
+
+    @Autowired
+    private DeviceInventoryRepository deviceInventoryRepository;
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
@@ -55,8 +60,18 @@ public class DeviceService {
                 timeSlotRepository.save(slot);
             }
         }
-        
+
         cacheDeviceAge(saved);
+
+        // 新设备同步开出盘点台账行：应出/实到初始为 0/空，不带差异标记
+        DeviceInventory inventory = new DeviceInventory();
+        inventory.setDevice(saved);
+        inventory.setExpectedParts(0);
+        inventory.setActualParts(null);
+        inventory.setMismatch(false);
+        inventory.setDifferenceCount(null);
+        deviceInventoryRepository.save(inventory);
+
         return saved;
     }
 
@@ -86,6 +101,8 @@ public class DeviceService {
         
         List<TimeSlot> slots = timeSlotRepository.findByDeviceId(id);
         timeSlotRepository.deleteAll(slots);
+        // 设备删除时一并清掉盘点台账行
+        deviceInventoryRepository.findByDeviceId(id).ifPresent(deviceInventoryRepository::delete);
         deviceRepository.delete(device);
         
         clearDeviceCache(id);

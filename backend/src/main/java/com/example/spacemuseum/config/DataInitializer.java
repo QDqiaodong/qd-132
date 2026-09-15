@@ -1,8 +1,10 @@
 package com.example.spacemuseum.config;
 
 import com.example.spacemuseum.entity.Device;
+import com.example.spacemuseum.entity.DeviceInventory;
 import com.example.spacemuseum.entity.StudyGroup;
 import com.example.spacemuseum.entity.TimeSlot;
+import com.example.spacemuseum.repository.DeviceInventoryRepository;
 import com.example.spacemuseum.repository.DeviceRepository;
 import com.example.spacemuseum.repository.StudyGroupRepository;
 import com.example.spacemuseum.repository.TimeSlotRepository;
@@ -11,8 +13,10 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -25,6 +29,9 @@ public class DataInitializer implements CommandLineRunner {
 
     @Autowired
     private StudyGroupRepository studyGroupRepository;
+
+    @Autowired
+    private DeviceInventoryRepository deviceInventoryRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -83,6 +90,32 @@ public class DataInitializer implements CommandLineRunner {
             device5.setCapacity(2);
             device5.setStatus(1);
             deviceRepository.save(device5);
+
+            // 盘点台账演示数据：每台设备一行，包含相符与盘点不符两种情形
+            int[][] counts = {
+                    {8, 8},   // DEV001 应出 8 实到 8，相符
+                    {12, 10}, // DEV002 应出 12 实到 10，少 2 件，盘点不符
+                    {6, 6},   // DEV003 相符
+                    {10, 11}, // DEV004 多 1 件，盘点不符
+                    {4, 4}    // DEV005 相符
+            };
+            int idx = 0;
+            List<Device> seededDevices = deviceRepository.findAll(
+                    org.springframework.data.domain.Sort.by("deviceCode"));
+            for (Device device : seededDevices) {
+                int expected = counts[idx][0];
+                int actual = counts[idx][1];
+                DeviceInventory inventory = new DeviceInventory();
+                inventory.setDevice(device);
+                inventory.setExpectedParts(expected);
+                inventory.setActualParts(actual);
+                inventory.setMismatch(expected != actual);
+                inventory.setDifferenceCount(actual - expected);
+                inventory.setInventoryTime(LocalDateTime.now());
+                inventory.setRemark(expected != actual ? "盘点时发现配件件数与出库登记不一致" : "配件齐套");
+                deviceInventoryRepository.save(inventory);
+                idx++;
+            }
         }
 
         if (timeSlotRepository.count() == 0) {

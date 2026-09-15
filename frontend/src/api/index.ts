@@ -45,6 +45,23 @@ export interface Device {
   status: number
 }
 
+export interface DeviceInventory {
+  id: number
+  deviceId: number
+  deviceCode: string
+  deviceName: string
+  /** 应出库配件件数 */
+  expectedParts: number
+  /** 实到件数；尚未盘点时为空 */
+  actualParts: number | null
+  /** 盘点不符标记：应出与实到不一致即为 true */
+  mismatch: boolean
+  /** 差异件数：实到 - 应出 */
+  differenceCount: number | null
+  inventoryTime: string | null
+  remark: string
+}
+
 export interface TimeSlot {
   id: number
   deviceId: number
@@ -149,6 +166,14 @@ export const deviceApi = {
   addSlot: (id: number, data: Omit<TimeSlot, 'id' | 'deviceId'>): Promise<{ message: string }> => api.post(`/devices/${id}/slots`, data),
   updateSlot: (slotId: number, data: TimeSlot): Promise<{ message: string }> => api.put(`/devices/slots/${slotId}`, data),
   deleteSlot: (slotId: number): Promise<{ message: string }> => api.delete(`/devices/slots/${slotId}`)
+}
+
+export const inventoryApi = {
+  getAll: (): Promise<DeviceInventory[]> => api.get('/device-inventory'),
+  update: (
+    id: number,
+    data: { expectedParts: number; actualParts: number | null; remark: string }
+  ): Promise<DeviceInventory> => api.put(`/device-inventory/${id}`, data)
 }
 
 export const studyGroupApi = {
