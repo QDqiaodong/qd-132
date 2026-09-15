@@ -21,6 +21,10 @@
               <el-icon><Clock /></el-icon>
               <span>时段配置</span>
             </el-menu-item>
+            <el-menu-item index="/occupancy">
+              <el-icon><DataAnalysis /></el-icon>
+              <span>设备占用一览</span>
+            </el-menu-item>
             <el-menu-item index="/study-groups">
               <el-icon><User /></el-icon>
               <span>研学团管理</span>
@@ -57,7 +61,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Ship, Monitor, Clock, User, Grid, Guide, Box } from '@element-plus/icons-vue'
+import { Ship, Monitor, Clock, User, Grid, Guide, Box, DataAnalysis } from '@element-plus/icons-vue'
 import { authState, clearAuth } from '@/auth'
 
 const route = useRoute()

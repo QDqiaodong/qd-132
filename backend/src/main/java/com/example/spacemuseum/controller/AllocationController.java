@@ -2,6 +2,7 @@ package com.example.spacemuseum.controller;
 
 import com.example.spacemuseum.dto.AllocationDTO;
 import com.example.spacemuseum.dto.AllocationResultDTO;
+import com.example.spacemuseum.dto.DeviceOccupancyDTO;
 import com.example.spacemuseum.dto.GroupAllocationDTO;
 import com.example.spacemuseum.entity.Allocation;
 import com.example.spacemuseum.security.CurrentUser;
@@ -69,6 +70,17 @@ public class AllocationController {
             return ResponseEntity.ok(allocationService.getAllocationsByDate(visitDate));
         }
         return ResponseEntity.ok(allocationService.getAllocationsByDateAndGroup(visitDate, user.groupId()));
+    }
+
+    /**
+     * 占用一览：仅馆务可查。按参观日返回每台设备的已排人数、当日容量与剩余容量，
+     * 数字由当前有效占用实时汇总，占用变动后刷新即与台账一致。
+     */
+    @GetMapping("/occupancy/{visitDate}")
+    public ResponseEntity<List<DeviceOccupancyDTO>> getDeviceOccupancy(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate visitDate) {
+        SecurityUtils.requireStaff();
+        return ResponseEntity.ok(allocationService.getDeviceOccupancy(visitDate));
     }
 
     @PostMapping("/auto/{studyGroupId}")

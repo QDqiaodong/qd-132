@@ -4,6 +4,7 @@ import TimeSlotManagement from '@/views/TimeSlotManagement.vue'
 import StudyGroupManagement from '@/views/StudyGroupManagement.vue'
 import AllocationLedger from '@/views/AllocationLedger.vue'
 import InventoryLedger from '@/views/InventoryLedger.vue'
+import DeviceOccupancy from '@/views/DeviceOccupancy.vue'
 import RouteManagement from '@/views/RouteManagement.vue'
 import LoginView from '@/views/LoginView.vue'
 import { authState } from '@/auth'
@@ -40,6 +41,12 @@ const routes = [
     path: '/inventory',
     name: 'InventoryLedger',
     component: InventoryLedger,
+    meta: { staffOnly: true }
+  },
+  {
+    path: '/occupancy',
+    name: 'DeviceOccupancy',
+    component: DeviceOccupancy,
     meta: { staffOnly: true }
   },
   {

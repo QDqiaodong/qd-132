@@ -126,6 +126,20 @@ export interface GroupAllocation {
   allocations: AllocationResult[]
 }
 
+export interface DeviceOccupancy {
+  deviceId: number
+  deviceCode: string
+  deviceName: string
+  /** 参观日当天的可用时段数 */
+  slotCount: number
+  /** 该参观日已排进这台设备的学生总数 */
+  allocatedStudents: number
+  /** 当日总容量：单时段容量 × 当日时段数 */
+  totalCapacity: number
+  /** 剩余容量：当日容量 - 已排人数 */
+  remainingCapacity: number
+}
+
 export interface RouteStop {
   stopId: number
   deviceId: number
@@ -194,6 +208,7 @@ export const allocationApi = {
   getGroupDetail: (groupId: number): Promise<GroupAllocation> => api.get(`/allocations/group/${groupId}/detail`),
   getAllGroups: (): Promise<GroupAllocation[]> => api.get('/allocations/all-groups'),
   getByDate: (date: string): Promise<Allocation[]> => api.get(`/allocations/date/${date}`),
+  getOccupancy: (date: string): Promise<DeviceOccupancy[]> => api.get(`/allocations/occupancy/${date}`),
   autoAllocate: (groupId: number): Promise<AllocationResult[]> => api.post(`/allocations/auto/${groupId}`),
   manualAllocate: (data: { studyGroupId: number; deviceId: number; timeSlotId: number; studentCount: number; status: number }): Promise<Allocation> => api.post('/allocations', data),
   update: (id: number, data: Allocation): Promise<Allocation> => api.put(`/allocations/${id}`, data),

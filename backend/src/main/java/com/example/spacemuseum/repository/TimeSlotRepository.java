@@ -25,4 +25,7 @@ public interface TimeSlotRepository extends JpaRepository<TimeSlot, Long> {
 
     @Query("SELECT ts FROM TimeSlot ts WHERE ts.available = true ORDER BY ts.device.id, ts.sortOrder")
     List<TimeSlot> findAllAvailableSlots();
+
+    @Query("SELECT ts FROM TimeSlot ts WHERE ts.dayOfWeek = :dayOfWeek AND ts.available = true ORDER BY ts.device.id, ts.sortOrder")
+    List<TimeSlot> findAvailableSlotsByDay(@Param("dayOfWeek") Integer dayOfWeek);
 }

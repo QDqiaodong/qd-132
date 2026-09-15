@@ -2,6 +2,7 @@ package com.example.spacemuseum.service;
 
 import com.example.spacemuseum.dto.AllocationDTO;
 import com.example.spacemuseum.dto.AllocationResultDTO;
+import com.example.spacemuseum.dto.DeviceOccupancyDTO;
 import com.example.spacemuseum.dto.GroupAllocationDTO;
 import com.example.spacemuseum.entity.Allocation;
 import com.example.spacemuseum.entity.Device;
@@ -244,6 +245,40 @@ public class AllocationService {
 
     public List<Allocation> getAllocationsByDateAndGroup(java.time.LocalDate visitDate, Long studyGroupId) {
         return allocationRepository.findActiveAllocationsByDateAndGroup(visitDate, studyGroupId);
+    }
+
+    /**
+     * 占用一览：某参观日每台设备的已排人数与容量。
+     * 已排人数在每次查询时按当前有效占用（status=1）实时汇总，
+     * 团人数变动、占用取消后重新打开页面，数字即与当前占用一致；
+     * 当日容量 = 设备单时段容量 × 参观日当天的可用时段数。
+     */
+    public List<DeviceOccupancyDTO> getDeviceOccupancy(java.time.LocalDate visitDate) {
+        int dayOfWeek = visitDate.getDayOfWeek().getValue();
+
+        Map<Long, Long> slotCountByDevice = timeSlotRepository.findAvailableSlotsByDay(dayOfWeek).stream()
+                .collect(Collectors.groupingBy(slot -> slot.getDevice().getId(), Collectors.counting()));
+
+        Map<Long, Integer> allocatedByDevice = allocationRepository.findActiveAllocationsByDate(visitDate).stream()
+                .collect(Collectors.groupingBy(a -> a.getDevice().getId(),
+                        Collectors.summingInt(Allocation::getStudentCount)));
+
+        return deviceRepository.findAll().stream()
+                .map(device -> {
+                    int slotCount = slotCountByDevice.getOrDefault(device.getId(), 0L).intValue();
+                    int allocated = allocatedByDevice.getOrDefault(device.getId(), 0);
+                    int totalCapacity = device.getCapacity() * slotCount;
+                    return new DeviceOccupancyDTO(
+                            device.getId(),
+                            device.getDeviceCode(),
+                            device.getDeviceName(),
+                            slotCount,
+                            allocated,
+                            totalCapacity,
+                            totalCapacity - allocated
+                    );
+                })
+                .collect(Collectors.toList());
     }
 
     /**
