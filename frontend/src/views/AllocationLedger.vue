@@ -117,12 +117,14 @@
       <el-form :model="manualForm" label-width="100px">
         <el-form-item label="研学团" required>
           <el-select v-model="manualForm.studyGroupId">
-            <el-option v-for="group in studyGroups" :key="group.id" :label="group.groupName" :value="group.id" />
+            <el-option v-for="group in studyGroups" :key="group.id"
+              :label="`${group.groupName}（平均年龄${group.averageAge}岁）`" :value="group.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="设备" required>
           <el-select v-model="manualForm.deviceId" @change="loadDeviceSlots">
-            <el-option v-for="device in devices" :key="device.id" :label="device.deviceName" :value="device.id" />
+            <el-option v-for="device in devices" :key="device.id"
+              :label="`${device.deviceName}（适用年龄${device.minAge}-${device.maxAge}岁）`" :value="device.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="时段" required>
@@ -263,6 +265,13 @@ const loadDeviceSlots = async () => {
 }
 
 const saveManualAllocation = async () => {
+  // 提交前先核对年龄区间，越界时把团的平均年龄和设备两边年龄都说明清楚，不发起配对
+  const group = studyGroups.value.find(g => g.id === manualForm.studyGroupId)
+  const device = devices.value.find(d => d.id === manualForm.deviceId)
+  if (group && device && (group.averageAge < device.minAge || group.averageAge > device.maxAge)) {
+    ElMessage.error(`该研学团平均年龄${group.averageAge}岁，不在设备「${device.deviceName}」标注的适用年龄${device.minAge}-${device.maxAge}岁范围内，不能配对`)
+    return
+  }
   try {
     await allocationApi.manualAllocate(manualForm)
     ElMessage.success('手动分配成功')

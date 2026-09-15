@@ -129,6 +129,10 @@ public class AllocationService {
         TimeSlot slot = timeSlotRepository.findById(dto.getTimeSlotId())
                 .orElseThrow(() -> new RuntimeException("时段不存在"));
 
+        // 手工配对同样要核对年龄区间：平均年龄不在设备标注的最小/最大年龄之间时直接拒绝，
+        // 校验先于任何写操作，越界配对不会落库，再打开台账也看不到
+        validateAgeRange(group, device);
+
         Integer allocated = allocationRepository.sumStudentsByTimeSlot(dto.getTimeSlotId());
         allocated = allocated == null ? 0 : allocated;
         
@@ -168,14 +172,16 @@ public class AllocationService {
         Allocation allocation = allocationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("分配记录不存在"));
 
-        if (!allocation.getStudyGroup().getId().equals(dto.getStudyGroupId())) {
-            StudyGroup group = studyGroupRepository.findById(dto.getStudyGroupId())
+        StudyGroup group = allocation.getStudyGroup();
+        if (!group.getId().equals(dto.getStudyGroupId())) {
+            group = studyGroupRepository.findById(dto.getStudyGroupId())
                     .orElseThrow(() -> new RuntimeException("研学团不存在"));
             allocation.setStudyGroup(group);
         }
 
-        if (!allocation.getDevice().getId().equals(dto.getDeviceId())) {
-            Device device = deviceRepository.findById(dto.getDeviceId())
+        Device device = allocation.getDevice();
+        if (!device.getId().equals(dto.getDeviceId())) {
+            device = deviceRepository.findById(dto.getDeviceId())
                     .orElseThrow(() -> new RuntimeException("设备不存在"));
             allocation.setDevice(device);
         }
@@ -186,9 +192,12 @@ public class AllocationService {
             allocation.setTimeSlot(slot);
         }
 
+        // 改配到新团或新设备时同样要核对年龄区间，越界的修改不能保存
+        validateAgeRange(group, device);
+
         allocation.setStudentCount(dto.getStudentCount());
         allocation.setStatus(dto.getStatus());
-        
+
         return allocationRepository.save(allocation);
     }
 
@@ -235,6 +244,22 @@ public class AllocationService {
 
     public List<Allocation> getAllocationsByDateAndGroup(java.time.LocalDate visitDate, Long studyGroupId) {
         return allocationRepository.findActiveAllocationsByDateAndGroup(visitDate, studyGroupId);
+    }
+
+    /**
+     * 校验研学团平均年龄是否落在设备标注的年龄区间内（含端点）。
+     * 越界时把团的平均年龄和设备两边的年龄都说清楚，且不允许配对落库。
+     */
+    private void validateAgeRange(StudyGroup group, Device device) {
+        Integer averageAge = group.getAverageAge();
+        Integer minAge = device.getMinAge();
+        Integer maxAge = device.getMaxAge();
+        if (averageAge == null || averageAge < minAge || averageAge > maxAge) {
+            throw new RuntimeException("该研学团平均年龄" + averageAge
+                    + "岁，不在设备「" + device.getDeviceName()
+                    + "」标注的适用年龄" + minAge + "-" + maxAge
+                    + "岁范围内，不能配对");
+        }
     }
 
     private String generateBatchNumber(String groupCode) {
