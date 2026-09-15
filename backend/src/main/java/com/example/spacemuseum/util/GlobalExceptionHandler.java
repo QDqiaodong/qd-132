@@ -1,5 +1,6 @@
 package com.example.spacemuseum.util;
 
+import com.example.spacemuseum.exception.ConflictException;
 import com.example.spacemuseum.security.AccessDeniedException;
 import com.example.spacemuseum.security.UnauthorizedException;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,14 @@ public class GlobalExceptionHandler {
         Map<String, String> response = new HashMap<>();
         response.put("error", ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<Map<String, String>> handleConflictException(ConflictException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("code", ex.getCode());
+        response.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(RuntimeException.class)
