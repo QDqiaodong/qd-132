@@ -48,5 +48,11 @@ public class DeviceDTO {
     @NotNull(message = "状态不能为空")
     private Integer status;
 
+    /**
+     * 本次编辑所依据的设备版本号（来自打开设备时查到的档案）。
+     * 仅更新时校验：为空或与库内当前版本不一致，都按并发冲突拒绝（409）。
+     */
+    private Long version;
+
     private List<TimeSlotDTO> timeSlots;
 }

@@ -43,6 +43,8 @@ export interface Device {
   maxAge: number
   capacity: number
   status: number
+  /** 乐观锁版本号：每次保存自增，更新时必须原样带回 */
+  version: number
 }
 
 export interface DeviceInventory {

@@ -5,6 +5,7 @@ import com.example.spacemuseum.security.AccessDeniedException;
 import com.example.spacemuseum.security.UnauthorizedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -35,6 +36,15 @@ public class GlobalExceptionHandler {
         Map<String, String> response = new HashMap<>();
         response.put("code", ex.getCode());
         response.put("error", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    /** 乐观锁版本冲突兜底：别人在本次编辑期间先保存了，后到的更新不落库，按 409 告知前端 */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, String>> handleOptimisticLockingFailure(ObjectOptimisticLockingFailureException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("code", "DEVICE_VERSION_CONFLICT");
+        response.put("error", "该设备档案刚被其他人保存过，您编辑的是旧版本，本次保存未生效，请按最新档案重新修改");
         return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 

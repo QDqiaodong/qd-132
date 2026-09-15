@@ -5,11 +5,13 @@ import com.example.spacemuseum.dto.TimeSlotDTO;
 import com.example.spacemuseum.entity.Device;
 import com.example.spacemuseum.entity.DeviceInventory;
 import com.example.spacemuseum.entity.TimeSlot;
+import com.example.spacemuseum.exception.ConflictException;
 import com.example.spacemuseum.repository.DeviceInventoryRepository;
 import com.example.spacemuseum.repository.DeviceRepository;
 import com.example.spacemuseum.repository.TimeSlotRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -75,11 +77,26 @@ public class DeviceService {
         return saved;
     }
 
+    /**
+     * 更新设备档案（含现场讲解词）。
+     * 乐观锁防并发丢失更新：dto.version 是馆务打开设备时看到的版本，
+     * 与库内当前版本不一致，说明在其编辑期间已有别人先保存，本次整段拒绝（409），
+     * 先保存的那份保持不动。saveAndFlush 让版本冲突在本事务内立刻暴露并兜底成 409。
+     */
     @Transactional
     public Device updateDevice(Long id, DeviceDTO dto) {
         Device device = deviceRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("设备不存在"));
-        
+
+        if (dto.getVersion() == null) {
+            throw new ConflictException("DEVICE_VERSION_REQUIRED",
+                    "缺少设备版本信息，请重新打开设备档案后再保存");
+        }
+        if (device.getVersion() == null || !device.getVersion().equals(dto.getVersion())) {
+            throw new ConflictException("DEVICE_VERSION_CONFLICT",
+                    "该设备档案刚被其他人保存过，您编辑的是旧版本，本次保存未生效，请按最新档案重新修改");
+        }
+
         device.setDeviceCode(dto.getDeviceCode());
         device.setDeviceName(dto.getDeviceName());
         device.setDescription(dto.getDescription());
@@ -88,10 +105,16 @@ public class DeviceService {
         device.setMaxAge(dto.getMaxAge());
         device.setCapacity(dto.getCapacity());
         device.setStatus(dto.getStatus());
-        
-        Device saved = deviceRepository.save(device);
-        cacheDeviceAge(saved);
-        return saved;
+
+        try {
+            Device saved = deviceRepository.saveAndFlush(device);
+            cacheDeviceAge(saved);
+            return saved;
+        } catch (ObjectOptimisticLockingFailureException e) {
+            // 并发兜底：查出版本后、提交前又有一次更新先落库
+            throw new ConflictException("DEVICE_VERSION_CONFLICT",
+                    "该设备档案刚被其他人保存过，您编辑的是旧版本，本次保存未生效，请按最新档案重新修改");
+        }
     }
 
     @Transactional

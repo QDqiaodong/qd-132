@@ -97,7 +97,7 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveDevice">确定</el-button>
+        <el-button type="primary" :loading="saving" @click="saveDevice">确定</el-button>
       </template>
     </el-dialog>
 
@@ -162,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, h } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { deviceApi, type Device, type TimeSlot } from '@/api'
@@ -197,8 +197,12 @@ const form = reactive({
   minAge: 6,
   maxAge: 12,
   capacity: 20,
-  status: 1
+  status: 1,
+  version: 0
 })
+
+// 保存进行中标记：防止连点产生两个并发更新请求
+const saving = ref(false)
 
 const slotForm = reactive({
   id: 0,
@@ -257,7 +261,8 @@ const openAddDialog = () => {
     minAge: 6,
     maxAge: 12,
     capacity: 20,
-    status: 1
+    status: 1,
+    version: 0
   })
   dialogVisible.value = true
 }
@@ -269,18 +274,64 @@ const openEditDialog = (device: Device) => {
 }
 
 const saveDevice = async () => {
+  if (saving.value) return
+  // 快照本次提交内容：并发被拒时还能把对方已保存的稿子和自己这份一起展示
+  const submitted = { ...form }
+  saving.value = true
   try {
+    let saved: Device
     if (isEdit.value) {
-      await deviceApi.update(form.id, form)
+      saved = await deviceApi.update(form.id, { ...form })
       ElMessage.success('设备更新成功')
     } else {
-      await deviceApi.create(form)
+      saved = await deviceApi.create({ ...form })
       ElMessage.success('设备添加成功')
     }
     dialogVisible.value = false
-    loadDevices()
-  } catch (error) {
-    ElMessage.error('操作失败')
+    // 保存成功后设备页必须带出刚保存的那一份：
+    // 先把服务端返回的最新行（含新的 version）写进列表，再等待全量重新拉取完成，
+    // 避免刷新请求在途时页面仍短暂显示上一份旧稿。
+    const idx = devices.value.findIndex(d => d.id === saved.id)
+    if (idx >= 0) {
+      devices.value[idx] = saved
+    }
+    await loadDevices()
+  } catch (error: any) {
+    if (error?.response?.status === 409) {
+      // 两人几乎同时改同一台：后到的这次没有落库。
+      // 不关弹窗、不报成功，拉取先到者已保存的档案展示给后到的人看。
+      let latest: Device | null = null
+      try {
+        latest = await deviceApi.getById(form.id)
+      } catch {
+        latest = null
+      }
+      if (latest) {
+        await ElMessageBox.alert(
+          h('div', [
+            h('p', error.response.data?.error || '该设备刚被其他人保存过，您本次的修改未生效。'),
+            h('p', { style: 'margin-top:10px;font-weight:bold;' }, '设备页上当前保留的讲解词：'),
+            h('p', { style: 'white-space:pre-wrap;' }, latest.description || '（空）'),
+            h('p', { style: 'margin-top:10px;font-weight:bold;' }, '您这次未保存的讲解词：'),
+            h('p', { style: 'white-space:pre-wrap;' }, submitted.description || '（空）')
+          ]),
+          '保存被挡住：已有更新的版本先保存',
+          { type: 'warning', confirmButtonText: '我知道了，按最新档案处理' }
+        )
+        // 确认后以服务端最新档案为准：设备页表格与弹窗都显示先到者保存的那一份，
+        // 表单 version 同步为最新；此时关掉页面再打开，也不会把被挡住的内容当成已保存。
+        const ci = devices.value.findIndex(d => d.id === latest!.id)
+        if (ci >= 0) devices.value[ci] = latest
+        Object.assign(form, latest)
+        await loadDevices()
+      } else {
+        ElMessage.error('保存未生效，且未能获取最新设备档案，请重新打开设备页查看')
+      }
+    } else {
+      ElMessage.error(error?.response?.data?.error || '操作失败')
+    }
+  } finally {
+    saving.value = false
   }
 }
 

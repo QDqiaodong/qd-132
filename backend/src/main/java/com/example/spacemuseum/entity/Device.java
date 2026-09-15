@@ -44,6 +44,15 @@ public class Device {
     @Column(name = "status", nullable = false)
     private Integer status;
 
+    /**
+     * 乐观锁版本号：每次更新自增。
+     * 两人几乎同时改同一台设备时，后提交的一方带着过期版本号更新会被拒绝（409），
+     * 先保存的那份不会被整段覆盖。
+     */
+    @Version
+    @Column(name = "version", nullable = false, columnDefinition = "bigint not null default 0")
+    private Long version;
+
     @JsonIgnore
     @OneToMany(mappedBy = "device", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<TimeSlot> timeSlots = new ArrayList<>();
