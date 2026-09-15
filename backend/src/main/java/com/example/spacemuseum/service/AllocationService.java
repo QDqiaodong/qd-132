@@ -3,6 +3,8 @@ package com.example.spacemuseum.service;
 import com.example.spacemuseum.dto.AllocationDTO;
 import com.example.spacemuseum.dto.AllocationResultDTO;
 import com.example.spacemuseum.dto.DeviceOccupancyDTO;
+import com.example.spacemuseum.dto.ExperimentOrderDTO;
+import com.example.spacemuseum.dto.ExperimentOrderItemDTO;
 import com.example.spacemuseum.dto.GroupAllocationDTO;
 import com.example.spacemuseum.entity.Allocation;
 import com.example.spacemuseum.entity.Device;
@@ -237,6 +239,50 @@ public class AllocationService {
         return groups.stream()
                 .map(g -> getGroupAllocationDetail(g.getId()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 生成某研学团的实验顺序条：团信息 + 当前有效配对（status=1）按时段开始时间先后排列。
+     * 只查有效占用，取消掉的行（status=0）不会出现；
+     * 每次打开都实时查询，取消占用后重新打开顺序条即为最新内容。
+     * 只读事务保证拼装 DTO 时设备、时段的懒加载字段在会话内可取。
+     */
+    @Transactional(readOnly = true)
+    public ExperimentOrderDTO getExperimentOrder(Long studyGroupId) {
+        StudyGroup group = studyGroupRepository.findById(studyGroupId)
+                .orElseThrow(() -> new RuntimeException("研学团不存在"));
+
+        List<Allocation> allocations =
+                allocationRepository.findActiveAllocationsByGroupOrderByTime(studyGroupId);
+
+        List<ExperimentOrderItemDTO> items = new ArrayList<>();
+        int allocatedStudents = 0;
+        int sequence = 1;
+        for (Allocation allocation : allocations) {
+            items.add(new ExperimentOrderItemDTO(
+                    sequence++,
+                    allocation.getId(),
+                    allocation.getDevice().getDeviceCode(),
+                    allocation.getDevice().getDeviceName(),
+                    allocation.getTimeSlot().getStartTime(),
+                    allocation.getTimeSlot().getEndTime(),
+                    allocation.getStudentCount()
+            ));
+            allocatedStudents += allocation.getStudentCount();
+        }
+
+        return new ExperimentOrderDTO(
+                group.getId(),
+                group.getGroupCode(),
+                group.getGroupName(),
+                group.getSchoolName(),
+                group.getContactPerson(),
+                group.getContactPhone(),
+                group.getTotalStudents(),
+                group.getVisitDate(),
+                allocatedStudents,
+                items
+        );
     }
 
     public List<Allocation> getAllocationsByDate(java.time.LocalDate visitDate) {

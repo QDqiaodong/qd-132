@@ -126,8 +126,30 @@ export interface GroupAllocation {
   allocations: AllocationResult[]
 }
 
-export interface DeviceOccupancy {
-  deviceId: number
+export interface ExperimentOrderItem {
+  sequence: number
+  allocationId: number
+  deviceCode: string
+  deviceName: string
+  startTime: string
+  endTime: string
+  studentCount: number
+}
+
+export interface ExperimentOrder {
+  groupId: number
+  groupCode: string
+  groupName: string
+  schoolName: string
+  contactPerson: string | null
+  contactPhone: string | null
+  totalStudents: number
+  visitDate: string
+  allocatedStudents: number
+  items: ExperimentOrderItem[]
+}
+
+export interface DeviceOccupancy {  deviceId: number
   deviceCode: string
   deviceName: string
   /** 参观日当天的可用时段数 */
@@ -206,6 +228,8 @@ export const allocationApi = {
   getAll: (): Promise<Allocation[]> => api.get('/allocations'),
   getByGroup: (groupId: number): Promise<Allocation[]> => api.get(`/allocations/group/${groupId}`),
   getGroupDetail: (groupId: number): Promise<GroupAllocation> => api.get(`/allocations/group/${groupId}/detail`),
+  getExperimentOrder: (groupId: number): Promise<ExperimentOrder> =>
+    api.get(`/allocations/group/${groupId}/experiment-order`),
   getAllGroups: (): Promise<GroupAllocation[]> => api.get('/allocations/all-groups'),
   getByDate: (date: string): Promise<Allocation[]> => api.get(`/allocations/date/${date}`),
   getOccupancy: (date: string): Promise<DeviceOccupancy[]> => api.get(`/allocations/occupancy/${date}`),

@@ -3,6 +3,7 @@ import DeviceManagement from '@/views/DeviceManagement.vue'
 import TimeSlotManagement from '@/views/TimeSlotManagement.vue'
 import StudyGroupManagement from '@/views/StudyGroupManagement.vue'
 import AllocationLedger from '@/views/AllocationLedger.vue'
+import ExperimentOrder from '@/views/ExperimentOrder.vue'
 import InventoryLedger from '@/views/InventoryLedger.vue'
 import DeviceOccupancy from '@/views/DeviceOccupancy.vue'
 import RouteManagement from '@/views/RouteManagement.vue'
@@ -53,6 +54,11 @@ const routes = [
     path: '/allocations',
     name: 'AllocationLedger',
     component: AllocationLedger
+  },
+  {
+    path: '/experiment-order',
+    name: 'ExperimentOrder',
+    component: ExperimentOrder
   },
   {
     path: '/routes',

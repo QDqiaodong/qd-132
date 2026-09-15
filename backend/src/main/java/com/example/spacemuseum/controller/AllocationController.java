@@ -3,6 +3,7 @@ package com.example.spacemuseum.controller;
 import com.example.spacemuseum.dto.AllocationDTO;
 import com.example.spacemuseum.dto.AllocationResultDTO;
 import com.example.spacemuseum.dto.DeviceOccupancyDTO;
+import com.example.spacemuseum.dto.ExperimentOrderDTO;
 import com.example.spacemuseum.dto.GroupAllocationDTO;
 import com.example.spacemuseum.entity.Allocation;
 import com.example.spacemuseum.security.CurrentUser;
@@ -50,6 +51,17 @@ public class AllocationController {
     public ResponseEntity<GroupAllocationDTO> getGroupAllocationDetail(@PathVariable Long studyGroupId) {
         SecurityUtils.requireGroupAccess(studyGroupId);
         return ResponseEntity.ok(allocationService.getGroupAllocationDetail(studyGroupId));
+    }
+
+    /**
+     * 实验顺序条：进馆前带队老师领取的本团凭条。
+     * 按角色收窄可见范围：馆务可选任意研学团，带队老师只能开本团；
+     * 内容实时取自当前有效占用并按时段先后排列，占用取消后重新打开即不含被取消的行。
+     */
+    @GetMapping("/group/{studyGroupId}/experiment-order")
+    public ResponseEntity<ExperimentOrderDTO> getExperimentOrder(@PathVariable Long studyGroupId) {
+        SecurityUtils.requireGroupAccess(studyGroupId);
+        return ResponseEntity.ok(allocationService.getExperimentOrder(studyGroupId));
     }
 
     @GetMapping("/all-groups")

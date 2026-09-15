@@ -23,6 +23,9 @@ public interface AllocationRepository extends JpaRepository<Allocation, Long> {
     @Query("SELECT a FROM Allocation a WHERE a.studyGroup.id = :studyGroupId AND a.status = 1 ORDER BY a.timeSlot.sortOrder")
     List<Allocation> findActiveAllocationsByGroup(@Param("studyGroupId") Long studyGroupId);
 
+    @Query("SELECT a FROM Allocation a WHERE a.studyGroup.id = :studyGroupId AND a.status = 1 ORDER BY a.timeSlot.startTime, a.device.deviceCode, a.id")
+    List<Allocation> findActiveAllocationsByGroupOrderByTime(@Param("studyGroupId") Long studyGroupId);
+
     @Query("SELECT a FROM Allocation a WHERE a.studyGroup.visitDate = :visitDate AND a.status = 1")
     List<Allocation> findActiveAllocationsByDate(@Param("visitDate") java.time.LocalDate visitDate);
 

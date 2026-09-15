@@ -34,6 +34,10 @@
             <el-icon><Grid /></el-icon>
             <span>配对台账</span>
           </el-menu-item>
+          <el-menu-item index="/experiment-order">
+            <el-icon><Tickets /></el-icon>
+            <span>实验顺序条</span>
+          </el-menu-item>
           <el-menu-item index="/routes">
             <el-icon><Guide /></el-icon>
             <span>体验动线</span>
@@ -61,7 +65,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Ship, Monitor, Clock, User, Grid, Guide, Box, DataAnalysis } from '@element-plus/icons-vue'
+import { Ship, Monitor, Clock, User, Grid, Guide, Box, DataAnalysis, Tickets } from '@element-plus/icons-vue'
 import { authState, clearAuth } from '@/auth'
 
 const route = useRoute()
